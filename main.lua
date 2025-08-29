@@ -1,453 +1,181 @@
---// XRNL HUB — Orion UI (Mirror klashdevelopment)
---// Funciona en PC y Móvil – Ejecutores tipo KRNL
---// Guarda configuración en carpeta XRNL_Orion
+-- Cargar Rayfield UI
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
--- Cargar Orion desde el mirror que me diste:
-local ok, OrionLib = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/klashdevelopment/Mika-Roblox/refs/heads/main/libraries/Orion.lua"))()
-end)
-
-if not ok or not OrionLib then
-    warn("No se pudo cargar Orion Library (mirror klashdevelopment).")
-    return
-end
-
--- Utils seguros
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
-
-local LP = Players.LocalPlayer
-local function Notify(t, c, time)
-    OrionLib:MakeNotification({
-        Name = t or "XRNL",
-        Content = c or "",
-        Image = "rbxassetid://4483345998",
-        Time = time or 5
-    })
-end
-
-local function getHumanoid()
-    local char = LP.Character or LP.CharacterAdded:Wait()
-    return char:FindFirstChildOfClass("Humanoid")
-end
-
-local function getRoot()
-    local char = LP.Character or LP.CharacterAdded:Wait()
-    return char:FindFirstChild("HumanoidRootPart")
-end
-
--- Estado global guardable
-getgenv().XRNL_CFG = getgenv().XRNL_CFG or {
-    WalkSpeed = 16,
-    JumpPower = 50,
-    NoClip = false,
-    Fly = false,
-    ESP = false,
-    AntiAFK = true,
-    FlySpeed = 2,
-    Keybind_ToggleUI = Enum.KeyCode.RightControl.Name,
-}
-
--- Ventana
-local Window = OrionLib:MakeWindow({
-    Name = "XRNL HUB | Orion UI",
-    HidePremium = false,
-    SaveConfig = true,
-    ConfigFolder = "XRNL_Orion",
-    IntroEnabled = true,
-    IntroText = "XRNL HUB (Orion)"
+-- Crear ventana principal
+local Window = Rayfield:CreateWindow({
+    Name = "XRNL HUB | Rayfield Edition",
+    LoadingTitle = "Cargando XRNL...",
+    LoadingSubtitle = "Rayfield UI Powered",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "XRNLHub",
+        FileName = "Settings"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "discord.gg/xxxx",
+        RememberJoins = true
+    },
+    KeySystem = false
 })
 
----------------------------------------------------------------------
--- Pestañas
----------------------------------------------------------------------
-local TabUniversal   = Window:MakeTab({Name="Universal", Icon="rbxassetid://4483345998"})
-local TabPlayer      = Window:MakeTab({Name="Jugador",   Icon="rbxassetid://4483345998"})
-local TabTeleports   = Window:MakeTab({Name="Teleports", Icon="rbxassetid://4483345998"})
-local TabScripts     = Window:MakeTab({Name="Hubs & Scripts", Icon="rbxassetid://4483345998"})
-local TabBFruits     = Window:MakeTab({Name="Blox Fruits", Icon="rbxassetid://4483345998"})
-local TabMM2         = Window:MakeTab({Name="MM2", Icon="rbxassetid://4483345998"})
-local TabJailbreak   = Window:MakeTab({Name="Jailbreak", Icon="rbxassetid://4483345998"})
-local TabExtras      = Window:MakeTab({Name="Extras", Icon="rbxassetid://4483345998"})
-local TabCreditos    = Window:MakeTab({Name="Créditos", Icon="rbxassetid://4483345998"})
-
----------------------------------------------------------------------
--- Universal
----------------------------------------------------------------------
-TabUniversal:AddParagraph("XRNL HUB","Controles rápidos para todo juego (PC/Móvil).")
-
--- Anti AFK
-do
-    local vuConn
-    local function enableAntiAFK()
-        if vuConn then return end
-        local VirtualUser = game:GetService("VirtualUser")
-        vuConn = LP.Idled:Connect(function()
-            VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-            task.wait(1)
-            VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-        end)
-    end
-    local function disableAntiAFK()
-        if vuConn then vuConn:Disconnect(); vuConn = nil end
-    end
-
-    TabUniversal:AddToggle({
-        Name = "Anti AFK",
-        Default = getgenv().XRNL_CFG.AntiAFK,
-        Callback = function(v)
-            getgenv().XRNL_CFG.AntiAFK = v
-            if v then enableAntiAFK() else disableAntiAFK() end
-            Notify("Anti AFK", v and "Activado" or "Desactivado", 3)
-        end
-    })
-
-    if getgenv().XRNL_CFG.AntiAFK then
-        enableAntiAFK()
-    end
-end
-
--- Rejoin y Server Hop
-TabUniversal:AddButton({
-    Name = "Rejoin (reconectar)",
-    Callback = function()
-        pcall(function()
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
-        end)
-    end
+-- Notificación de bienvenida
+Rayfield:Notify({
+    Title = "¡Listo!",
+    Content = "XRNL HUB cargado correctamente.",
+    Duration = 5
 })
 
-TabUniversal:AddButton({
-    Name = "Server Hop (cambiar de servidor)",
-    Callback = function()
-        pcall(function()
-            local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", game.PlaceId)
-            local body = HttpService:JSONDecode(game:HttpGet(url))
-            local candidates = {}
-            for _, s in ipairs(body.data or {}) do
-                if s.playing and s.maxPlayers and s.playing < s.maxPlayers and s.id ~= game.JobId then
-                    table.insert(candidates, s.id)
-                end
-            end
-            if #candidates > 0 then
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, candidates[math.random(1,#candidates)], LP)
-            else
-                Notify("Server Hop", "No se encontraron servidores con espacio.", 5)
-            end
-        end)
-    end
-})
+-- ===================== UNIVERSAL TAB =====================
+local Universal = Window:CreateTab("🌍 Universal", 4483345998)
 
--- Toggle UI con keybind
-TabUniversal:AddKeybind({
-    Name = "Tecla: Mostrar/Ocultar UI",
-    Default = Enum.KeyCode[getgenv().XRNL_CFG.Keybind_ToggleUI] or Enum.KeyCode.RightControl,
-    Hold = false,
-    Callback = function()
-        OrionLib:ToggleUI()
-    end
-})
-
--- Botón flotante para móvil (simple)
-do
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "XRNL_MobileButton"
-    ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = game:GetService("CoreGui")
-    local TextButton = Instance.new("TextButton")
-    TextButton.Size = UDim2.new(0, 36, 0, 36)
-    TextButton.Position = UDim2.new(0, 20, 0.7, 0)
-    TextButton.Text = "≡"
-    TextButton.BackgroundTransparency = 0.2
-    TextButton.Parent = ScreenGui
-    TextButton.Active = true
-    TextButton.AutoButtonColor = true
-
-    -- Draggable simple
-    local dragging = false
-    local dragInput, dragStart, startPos
-    TextButton.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = TextButton.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then dragging = false end
-            end)
-        end
-    end)
-    TextButton.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            TextButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
-                                            startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-
-    TextButton.MouseButton1Click:Connect(function()
-        OrionLib:ToggleUI()
-    end)
-end
-
----------------------------------------------------------------------
--- Jugador (WalkSpeed / JumpPower / NoClip / Fly)
----------------------------------------------------------------------
-local humanoid = getHumanoid()
-humanoid.WalkSpeed = getgenv().XRNL_CFG.WalkSpeed
-humanoid.JumpPower = getgenv().XRNL_CFG.JumpPower
-
-TabPlayer:AddSlider({
-    Name = "Velocidad (WalkSpeed)",
-    Min = 8, Max = 300, Default = getgenv().XRNL_CFG.WalkSpeed, Increment = 1,
-    Callback = function(v)
-        getgenv().XRNL_CFG.WalkSpeed = v
-        local h = getHumanoid()
-        if h then h.WalkSpeed = v end
-    end
-})
-
-TabPlayer:AddSlider({
-    Name = "Salto (JumpPower)",
-    Min = 20, Max = 400, Default = getgenv().XRNL_CFG.JumpPower, Increment = 1,
-    Callback = function(v)
-        getgenv().XRNL_CFG.JumpPower = v
-        local h = getHumanoid()
-        if h then h.JumpPower = v end
-    end
-})
-
--- NoClip
-do
-    local noclipConn
-    local function enableNoClip()
-        if noclipConn then return end
-        noclipConn = RunService.Stepped:Connect(function()
-            if getgenv().XRNL_CFG.NoClip and LP.Character then
-                for _, v in pairs(LP.Character:GetDescendants()) do
-                    if v:IsA("BasePart") and v.CanCollide then
-                        v.CanCollide = false
-                    end
-                end
-            end
-        end)
-    end
-    local function disableNoClip()
-        if noclipConn then noclipConn:Disconnect(); noclipConn = nil end
-    end
-
-    TabPlayer:AddToggle({
-        Name = "NoClip (atravesar paredes)",
-        Default = getgenv().XRNL_CFG.NoClip,
-        Callback = function(v)
-            getgenv().XRNL_CFG.NoClip = v
-            if v then enableNoClip() else disableNoClip() end
-        end
-    })
-    if getgenv().XRNL_CFG.NoClip then enableNoClip() end
-end
-
--- Fly básico (BodyGyro/BodyVelocity)
-do
-    local flyConn, bg, bv
-    local function stopFly()
-        getgenv().XRNL_CFG.Fly = false
-        if flyConn then flyConn:Disconnect(); flyConn = nil end
-        local root = getRoot()
-        if root then
-            if bg then bg:Destroy(); bg = nil end
-            if bv then bv:Destroy(); bv = nil end
-        end
-        Notify("Fly", "Desactivado", 3)
-    end
-
-    local function startFly()
-        if getgenv().XRNL_CFG.Fly then return end
-        getgenv().XRNL_CFG.Fly = true
-        local root = getRoot()
-        if not root then return end
-        bg = Instance.new("BodyGyro")
-        bv = Instance.new("BodyVelocity")
-        bg.P = 9e4
-        bg.Parent = root
-        bv.Parent = root
-        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-        bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-
-        flyConn = RunService.RenderStepped:Connect(function()
-            local cam = workspace.CurrentCamera
-            if not cam then return end
-            bg.CFrame = cam.CFrame
-            local dir = Vector3.new(0,0,0)
-            local moveVec = Vector3.new(0,0,0)
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveVec = moveVec + cam.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveVec = moveVec - cam.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveVec = moveVec - cam.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveVec = moveVec + cam.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveVec = moveVec + cam.CFrame.UpVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveVec = moveVec - cam.CFrame.UpVector end
-            bv.Velocity = moveVec * (getgenv().XRNL_CFG.FlySpeed * 50)
-        end)
-        Notify("Fly", "Activado (WASD/Space/Shift).", 4)
-    end
-
-    TabPlayer:AddToggle({
-        Name = "Fly (básico)",
-        Default = getgenv().XRNL_CFG.Fly,
-        Callback = function(v)
-            if v then startFly() else stopFly() end
-        end
-    })
-
-    TabPlayer:AddSlider({
-        Name = "Velocidad de Fly",
-        Min = 1, Max = 10, Default = getgenv().XRNL_CFG.FlySpeed, Increment = 1,
-        Callback = function(v) getgenv().XRNL_CFG.FlySpeed = v end
-    })
-end
-
--- Reset Character
-TabPlayer:AddButton({
-    Name = "Reset Character",
-    Callback = function()
-        pcall(function()
-            local h = getHumanoid()
-            if h then h.Health = 0 end
-        end)
-    end
-})
-
----------------------------------------------------------------------
--- Teleports (a jugadores)
----------------------------------------------------------------------
-local playerNames = {}
-for _, p in ipairs(Players:GetPlayers()) do
-    if p ~= LP then table.insert(playerNames, p.Name) end
-end
-
-local selectedPlayer = nil
-TabTeleports:AddDropdown({
-    Name = "Selecciona jugador",
-    Default = nil,
-    Options = playerNames,
-    Callback = function(v) selectedPlayer = v end
-})
-
-Players.PlayerAdded:Connect(function(p)
-    TabTeleports:RefreshDropdown() -- Orion suele necesitar recrear, pero intentamos refrescar
-end)
-
-TabTeleports:AddButton({
-    Name = "Teleport a jugador",
-    Callback = function()
-        if not selectedPlayer then Notify("Teleport","Selecciona un jugador.",4) return end
-        local target = Players:FindFirstChild(selectedPlayer)
-        if not target or not target.Character then return end
-        local root = getRoot()
-        local troot = target.Character:FindFirstChild("HumanoidRootPart")
-        if root and troot then
-            root.CFrame = troot.CFrame + troot.CFrame.LookVector * 2
-        end
-    end
-})
-
----------------------------------------------------------------------
--- Hubs & Scripts (universales)
----------------------------------------------------------------------
-TabScripts:AddButton({
+Universal:CreateButton({
     Name = "Infinite Yield (Admin)",
     Callback = function()
         loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
     end
 })
 
-TabScripts:AddButton({
-    Name = "Simple ESP (Kiriot)",
-    Callback = function()
-        _G.esp_loaded = _G.esp_loaded or false
-        if not _G.esp_loaded then
-            _G.esp = loadstring(game:HttpGet("https://kiriot22.com/releases/ESP.lua"))()
-            _G.esp_loaded = true
-            Notify("ESP","Cargado. Usa el menú del ESP para ajustes.",5)
-        else
-            if _G.esp and _G.esp.Unload then
-                _G.esp:Unload()
-                _G.esp_loaded = false
-                Notify("ESP","Descargado.",4)
-            else
-                Notify("ESP","No se pudo descargar. (sin método Unload)",4)
-            end
-        end
-    end
-})
-
-TabScripts:AddButton({
-    Name = "Dex Explorer (Debug UI)",
+Universal:CreateButton({
+    Name = "Dex Explorer",
     Callback = function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
     end
 })
 
-TabScripts:AddButton({
-    Name = "Simple Fly (alternativo)",
+Universal:CreateButton({
+    Name = "Simple ESP",
+    Callback = function()
+        loadstring(game:HttpGet("https://kiriot22.com/releases/ESP.lua"))()
+    end
+})
+
+Universal:CreateButton({
+    Name = "Fly GUI",
     Callback = function()
         loadstring(game:HttpGet("https://pastebin.com/raw/YSL3xKYU"))()
     end
 })
 
-TabScripts:AddButton({
-    Name = "Keyboard (móvil) – VKB",
-    Callback = function()
-        -- Teclado virtual simple (terceros)
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/FilteringEnabled/FE/main/MobileKeyboard.lua"))()
-    end
-})
+-- ===================== BLOX FRUITS TAB =====================
+local Blox = Window:CreateTab("🍍 Blox Fruits", 4483345998)
 
-TabScripts:AddButton({
-    Name = "Hitbox Extender (universal, básico)",
-    Callback = function()
-        for _, pl in ipairs(Players:GetPlayers()) do
-            if pl ~= LP and pl.Character then
-                for _, v in pairs(pl.Character:GetChildren()) do
-                    if v:IsA("Part") and v.Name == "HumanoidRootPart" then
-                        v.Size = Vector3.new(10,10,10)
-                        v.Transparency = 0.7
-                        v.CanCollide = false
-                    end
-                end
-            end
-        end
-        Notify("Hitbox","Aplicado (básico).",3)
-    end
-})
-
----------------------------------------------------------------------
--- Blox Fruits
----------------------------------------------------------------------
-TabBFruits:AddButton({
+Blox:CreateButton({
     Name = "Mukuro Hub",
     Callback = function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/xQuartyx/DonateMe/main/ScriptLoader"))()
     end
 })
-TabBFruits:AddButton({
+
+Blox:CreateButton({
     Name = "Hoho Hub",
     Callback = function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/acsu123/HOHO_H/main/Loading_UI"))()
     end
 })
-TabBFruits:AddButton({
-    Name = "Zen Hub (BF)",
+
+Blox:CreateButton({
+    Name = "Zen Hub",
     Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/ZesticHUB/ZesticHub/main/BloxFruits"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/1f0yt/community/master/ZenHub"))()
     end
 })
-TabBFruits:AddButton({
-    Name = "Thund
+
+-- ===================== JAILBREAK TAB =====================
+local Jail = Window:CreateTab("🚔 Jailbreak", 4483345998)
+
+Jail:CreateButton({
+    Name = "Auto Rob",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/TrixAde/scripts/main/Jailbreaker.lua"))()
+    end
+})
+
+-- ===================== MURDER MYSTERY 2 TAB =====================
+local MM2 = Window:CreateTab("🔪 MM2", 4483345998)
+
+MM2:CreateButton({
+    Name = "MM2 Hub",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/scriptpastebin/raw/main/MM2%20GUI"))()
+    end
+})
+
+-- ===================== PLAYER MODS =====================
+local Player = Window:CreateTab("🧍 Player Mods", 4483345998)
+
+Player:CreateSlider({
+    Name = "WalkSpeed",
+    Range = {16, 300},
+    Increment = 2,
+    CurrentValue = 16,
+    Flag = "WalkSpeedSlider",
+    Callback = function(Value)
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
+    end
+})
+
+Player:CreateSlider({
+    Name = "JumpPower",
+    Range = {50, 300},
+    Increment = 5,
+    CurrentValue = 50,
+    Flag = "JumpPowerSlider",
+    Callback = function(Value)
+        game.Players.LocalPlayer.Character.Humanoid.JumpPower = Value
+    end
+})
+
+Player:CreateToggle({
+    Name = "NoClip",
+    CurrentValue = false,
+    Flag = "NoClipToggle",
+    Callback = function(Value)
+        local Player = game.Players.LocalPlayer
+        local RunService = game:GetService("RunService")
+        if Value then
+            NoClipConnection = RunService.Stepped:Connect(function()
+                if Player.Character then
+                    for _, v in pairs(Player.Character:GetDescendants()) do
+                        if v:IsA("BasePart") and v.CanCollide then
+                            v.CanCollide = false
+                        end
+                    end
+                end
+            end)
+        else
+            if NoClipConnection then
+                NoClipConnection:Disconnect()
+            end
+        end
+    end
+})
+
+-- ===================== UTILIDADES =====================
+local Utils = Window:CreateTab("🛠️ Utilidades", 4483345998)
+
+Utils:CreateButton({
+    Name = "ServerHop",
+    Callback = function()
+        loadstring(game:HttpGet("https://pastebin.com/raw/F7btU7KL"))()
+    end
+})
+
+Utils:CreateButton({
+    Name = "Rejoin",
+    Callback = function()
+        game:GetService("TeleportService"):TeleportToPlaceInstance(
+            game.PlaceId,
+            game.JobId,
+            game.Players.LocalPlayer
+        )
+    end
+})
+
+-- ===================== CREDITOS =====================
+local Credits = Window:CreateTab("⭐ Créditos", 4483345998)
+
+Credits:CreateParagraph({
+    Title = "XRNL HUB",
+    Content = "Creado por XRNL | Funciona en PC y Móvil | Executor: KRNL"
+})
